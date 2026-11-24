@@ -1,0 +1,4 @@
+# Private payslips — never commit
+תלושים*/
+*.pdf
+Claude outputs/
