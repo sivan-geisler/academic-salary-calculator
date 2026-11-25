@@ -342,7 +342,7 @@
           <input type="file" id="pdfFileInput" accept=".pdf,.PDF" multiple class="hidden" onchange="handlePDFUpload(this)">
           <div id="pdfDropZone"
             class="border-2 border-dashed border-gray-200 rounded-lg px-3 py-1 text-center cursor-pointer hover:border-blue-300 hover:bg-blue-50 transition-colors max-w-md"
-            onclick="if (!event.target.closest('button')) document.getElementById('pdfFileInput').click()">
+            onclick="if (!event.target.closest('button') && !_pendingNoneGrant) document.getElementById('pdfFileInput').click()">
             <div class="text-xs text-gray-500">📄 ייבוא ״הודעה לחוקר״ (PDF, אפשר כמה)</div>
           </div>
           <button onclick="addGrant({}, true)" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">+ הוספת מענק</button>
@@ -1909,7 +1909,7 @@ function _renderGrantsImpl() {
     const typeCls   = isNone    ? 'bg-gray-100 text-gray-500'
                     : isNoneExt ? 'bg-orange-100 text-orange-700'
                     : g.type === 'A' ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-800';
-    const typeTxt   = isNone ? 'פנימי — לא נספר' : isNoneExt ? 'חיצוני — נספר רק למצוינות' : g.type === 'A' ? 'א׳' : 'ב׳';
+    const typeTxt   = isNone ? 'פנימי' : isNoneExt ? 'חיצוני' : g.type === 'A' ? 'א׳' : 'ב׳';
     const isOpen    = expandedGrants.has(g.id);
     const rowCls    = isOpen ? 'bg-blue-50' : (isNone || isNoneExt) ? 'text-gray-500 hover:bg-gray-50' : 'hover:bg-gray-50';
     const td = 'px-2 py-1.5 whitespace-nowrap';
@@ -2338,10 +2338,31 @@ var _flashGrantIds = new Set();
 var _pdfImportBusy = false;
 var _lastImportSummary = null;   // { added, merged, errors } — read by the onboarding hook
 
+var PDF_READ_TIMEOUT_MS = 45000;
+// a PDF read that never finishes must not block further uploads
+function _withTimeout(promise, ms, msg) {
+  let t;
+  return Promise.race([promise, new Promise((_, rej) => { t = setTimeout(() => rej(new Error(msg)), ms); })])
+    .finally(() => clearTimeout(t));
+}
+// an upload that arrives while another one is still in progress: say so instead of ignoring it
+function _showPdfBusyNote() {
+  const dz = document.getElementById('pdfDropZone');
+  if (!dz) return;
+  let note = document.getElementById('pdfBusyNote');
+  if (!note) { note = document.createElement('div'); note.id = 'pdfBusyNote'; dz.appendChild(note); }
+  note.className = 'text-xs font-semibold text-red-700 bg-red-50 border border-red-200 rounded-lg px-2 py-1 mt-2';
+  note.textContent = _pendingNoneGrant
+    ? 'כדי להעלות קובץ נוסף, ענו קודם על השאלה שלמעלה.'
+    : 'קובץ קודם עדיין נקרא. המתינו לסיום והעלו שוב.';
+  dz.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
 async function handlePDFUpload(input) {
   const files = [...(input.files || [])].filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
   if (input.value !== undefined) input.value = ''; // reset so same file can be re-selected
-  if (!files.length || _pdfImportBusy) return;
+  if (!files.length) return;
+  if (_pdfImportBusy) { _showPdfBusyNote(); return; } // don't swallow the upload silently
   _pdfImportBusy = true;
 
   const dz = document.getElementById('pdfDropZone');
@@ -2358,7 +2379,8 @@ async function handlePDFUpload(input) {
     await _sleep(30); // let the browser paint the spinner before the heavy PDF work
 
     try {
-      const grant = await parsePDFGrant(files[i]);
+      const grant = await _withTimeout(parsePDFGrant(files[i]), PDF_READ_TIMEOUT_MS,
+        'קריאת הקובץ לא הסתיימה. אפשר לנסות שוב, או להזין את המענק ידנית');
       const label = (grant.funderName || grant.name || files[i].name)
         + (grant.partialLetter ? ` (מענק ל-${grant.totalYears} שנים, מכתב של שנה ${grant.currentYearNum}${grant.yearsCovered > 1 ? ` עד ${grant.currentYearNum + grant.yearsCovered - 1}` : ''}. הסכום הוערך לפי התקציב במכתב × ${grant.totalYears}${grant.yearsCovered > 1 ? `/${grant.yearsCovered}` : ''})`
            : grant.totalYears > 1 && grant.periodMonths ? ` (המכתב מכסה את כל תקופת המענק: ${grant.periodMonths} חודשים)` : '')
@@ -2423,16 +2445,15 @@ function _askNoneGrant(dz, grant) {
     dz.innerHTML = `
       <div class="text-xs text-gray-700 space-y-2 py-1">
         <div class="font-semibold text-amber-700">⚠️ סוג המממן: ללא זכאות לתוספת מחקר</div>
-        <div class="text-gray-500">האם ${fname} הוא מממן <strong>חיצוני</strong>?<br>
-          <span class="text-gray-400">(משפיע על גמול מצוינות)</span></div>
+        <div class="text-gray-500">האם ${fname} הוא מממן <strong>חיצוני</strong>?</div>
         <div class="flex gap-2 justify-center pt-1">
           <button onclick="confirmNoneGrant(true)"
             class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
-            חיצוני — נספר רק למצוינות
+            חיצוני
           </button>
           <button onclick="confirmNoneGrant(false)"
             class="bg-gray-400 hover:bg-gray-500 text-white text-xs px-3 py-1.5 rounded-lg transition-colors">
-            פנימי — לא נספר
+            פנימי
           </button>
         </div>
       </div>`;
