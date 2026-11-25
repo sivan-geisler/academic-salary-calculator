@@ -630,7 +630,7 @@
 <!-- ===== SCRIPTS ===== -->
 <script>
 // תאריך הגרסה — לעדכן בכל פעם שמפיצים גרסה חדשה. מוצג בתחתית העמוד ובדוח ה-PDF.
-const APP_VERSION = '24.11.2026';
+const APP_VERSION = '25.11.2026';
 const SHOW_SIMULATOR = false;   // לשונית הסימולטור "מה אם" — מוסתרת; true מחזיר אותה
 document.getElementById('appVersion').textContent = 'גרסה ' + APP_VERSION;
 document.getElementById('tab-optimizer').classList.toggle('hidden', !SHOW_SIMULATOR);
@@ -1278,14 +1278,27 @@ function renderDashboard() {
   // What to do to actually receive the additions (from the rules document)
   document.getElementById('breakdownTable').insertAdjacentHTML('beforeend', `
     <details class="mx-3 mt-2 text-xs text-gray-600">
-      <summary class="cursor-pointer text-blue-700 font-semibold">מה צריך לעשות כדי לקבל את התוספות?</summary>
-      <ul class="list-disc mr-5 mt-1 space-y-0.5 leading-relaxed">
-        <li><b>הקדשת זמן מלא ומענק דיפרנציאלי</b> — טפסים בפורטל (נשלחת תזכורת אוטומטית; הדיפרנציאלי אחת לשנה).</li>
-        <li><b>תוספת מחקר ב׳ וריבוי מחקרים</b> — אמורים להינתן אוטומטית עם הפעלת המענק. כדאי לוודא מול מחלקת שכר שהמענק מוכר להם.</li>
-        <li><b>תוספת מחקר א׳</b> — משולמת מהמענק: פונים בבקשה למחלקת שכר במוסד.</li>
-        <li><b>גמול המצוינות</b> — לא ניתן אוטומטית: ממלאים טופס עם פרטי כל המענקים הפעילים ומעבירים לתקציבנ/ית.</li>
-        <li><b>תוספת תפקיד</b> — אמורה להינתן עם המינוי. לוודא מול לשכת הסגל.</li>
-      </ul>
+      <summary class="cursor-pointer text-blue-700 font-semibold">באיזה תלוש מופיעות התוספות, ומה צריך לעשות כדי לקבל אותן?</summary>
+      <div class="mt-2 overflow-x-auto border border-gray-200 rounded-xl">
+      <table class="w-full text-xs leading-relaxed">
+        <thead class="bg-blue-50 text-blue-900"><tr>
+          <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">תוספת</th>
+          <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">באיזה תלוש</th>
+          <th class="px-3 py-2 text-right font-semibold">איך היא מופיעה בתלוש</th>
+          <th class="px-3 py-2 text-right font-semibold">מה צריך לעשות</th>
+        </tr></thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">הקדשת זמן מלא</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold whitespace-nowrap">תלוש הטכניון</span></td><td class="px-3 py-2">״מענק הקדשת זמן״ (סמל 328). משולם בשתי מחציות: במשכורת אפריל (על סמסטר א׳) ובמשכורת אוקטובר (על סמסטר ב׳ של השנה הקודמת).</td><td class="px-3 py-2">למלא טופס הצהרה בפורטל. הקישור נשלח במייל באפריל ובאוקטובר.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">מענק דיפרנציאלי<div class="font-normal text-gray-500">(מענק טכנולוגי)</div></td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold whitespace-nowrap">תלוש הטכניון</span></td><td class="px-3 py-2">״מענק טכניוני״ (סמל 252). משולם בשלושה שלישים: במשכורת מרץ (על אוקטובר עד ינואר), במשכורת יוני (על פברואר עד מאי) ובמשכורת ספטמבר (על יוני עד ספטמבר).</td><td class="px-3 py-2">למלא את הטפסים עד התאריך שמצוין בהם. הקישור נשלח במייל בינואר.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">תוספת תפקיד</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold whitespace-nowrap">תלוש הטכניון</span></td><td class="px-3 py-2">״תוס.תפקיד נוסף״ (סמל 104)</td><td class="px-3 py-2">אמורה להינתן עם המינוי. לוודא מול לשכת הסגל.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">תוספת מחקר ב׳</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold whitespace-nowrap">תלוש הטכניון</span></td><td class="px-3 py-2">״תוספת מחקר ב״ (סמל 331)</td><td class="px-3 py-2">אמורה להינתן אוטומטית עם הפעלת המענק. כדאי לוודא מול מחלקת השכר שהמענק מוכר להם.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">ריבוי מחקרים</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold whitespace-nowrap">תלוש הטכניון</span></td><td class="px-3 py-2">״תוספת מחקר ב״ (סמל 333)</td><td class="px-3 py-2">כמו תוספת מחקר ב׳.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">תוספת מחקר א׳</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold whitespace-nowrap">תלוש המוסד</span></td><td class="px-3 py-2">״חוקר א״ (סמל 341) או ״תוס.א׳- פנס.צוב״ (סמל 1343). שורה נפרדת לכל מענק.</td><td class="px-3 py-2">משולמת ממענק המחקר: פונים בבקשה למחלקת השכר במוסד הטכניון.</td></tr>
+          <tr><td class="px-3 py-2 font-semibold text-gray-800 whitespace-nowrap">גמול מצוינות</td><td class="px-3 py-2"><span class="inline-block px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold whitespace-nowrap">תלוש המוסד</span></td><td class="px-3 py-2">״תוס.תפקיד מיוחד״ (סמל 108)</td><td class="px-3 py-2">לא ניתן אוטומטית: למלא טופס עם פרטי כל המענקים הפעילים ולהעביר לתקציבנ/ית.</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="mt-1.5 text-gray-400">תלוש הטכניון ותלוש מוסד הטכניון הם שני תלושים נפרדים.</p>
     </details>`);
 
   // Alerts
@@ -3651,7 +3664,7 @@ function renderSummarySentence(r) {
   if (r.noBase) html += ' תקרת התוספות תחושב אחרי הזנת שכר הבסיס.';
   else if (remain > 0.05) html += ` עד תקרת התוספות (${p(r.effCeilAddPct)}) נשארים ${p(remain)}${onlyMgmtFillsRoom(r) ? ' — מקום שרק תוספת תפקיד יכולה למלא' : ''}.`;
   else html += ' הגעתם לתקרת התוספות.';
-  html += `<div class="text-xs text-gray-600 mt-1.5">המחשבון מציג את הזכאות לפי הכללים, ולא בהכרח את מה שמשולם בפועל: התשלום תלוי בטפסים, באישורים ובמועדי הביצוע במחלקות השכר (ראו ״מה צריך לעשות״ מתחת לפירוט). כל האחוזים הם אחוז משכר הבסיס שלכם.</div>`;
+  html += `<div class="text-xs text-gray-600 mt-1.5">המחשבון מציג את הזכאות לפי הכללים, ולא בהכרח את מה שמשולם בפועל: התשלום תלוי בטפסים, באישורים ובמועדי הביצוע במחלקות השכר (ראו ״באיזה תלוש מופיעות התוספות״ מתחת לפירוט). כל האחוזים הם אחוז משכר הבסיס שלכם.</div>`;
   html += `</div>`;
   el.innerHTML = html;
   document.getElementById('demoBanner').classList.toggle('hidden', !state.demo);
