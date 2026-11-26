@@ -630,7 +630,7 @@
 <!-- ===== SCRIPTS ===== -->
 <script>
 // תאריך הגרסה — לעדכן בכל פעם שמפיצים גרסה חדשה. מוצג בתחתית העמוד ובדוח ה-PDF.
-const APP_VERSION = '25.11.2026';
+const APP_VERSION = '26.11.2026';
 const SHOW_SIMULATOR = false;   // לשונית הסימולטור "מה אם" — מוסתרת; true מחזיר אותה
 document.getElementById('appVersion').textContent = 'גרסה ' + APP_VERSION;
 document.getElementById('tab-optimizer').classList.toggle('hidden', !SHOW_SIMULATOR);
@@ -3582,11 +3582,15 @@ function welcomeStepDone(n, html) {
   const el = document.getElementById('wStep' + n);
   el.dataset.done = '1';
   if (html != null && n < 3) document.getElementById('wMsg' + n).innerHTML = `<div class="text-green-700 bg-green-50 rounded-lg px-3 py-2">${html}</div>`;
-  setWelcomeStep(n + 1);
+  // the next step is the first one not finished yet — also when going back to an earlier step
+  let next = 1;
+  while (next < 3 && document.getElementById('wStep' + next).dataset.done === '1') next++;
+  setWelcomeStep(next);
 }
 function welcomeManualPersonal() {
   const v = parseFloat(document.getElementById('wBase').value);
   if (!(v >= 5000)) { document.getElementById('wBase').classList.add('border-red-400'); return; }
+  _leaveDemo();
   state.personal.baseSalary = v;
   state.personal.rank = document.getElementById('wRank').value;
   restorePersonalUI(); updateAll(); renderGrants();
@@ -3606,13 +3610,19 @@ function restorePDFZonePlace() {
   if (_dzHome && dz.parentNode !== _dzHome.parent) _dzHome.parent.insertBefore(dz, _dzHome.next);
 }
 function welcomeManualGrant() {
+  _leaveDemo();
   closeWelcome();
   addGrant({}, true);
   document.getElementById('grantsContainer').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 // hooks: payslip read and grant import report back to the onboarding steps
+// real data must replace the sample data, never join it
+function _leaveDemo() {
+  if (state.demo) _blankState();
+}
 const _origImportPayslip = importPayslip;
 importPayslip = async function (input) {
+  if (input.files && input.files[0]) _leaveDemo();
   await _origImportPayslip(input);
   if (!welcomeActive) return;
   const msg = document.getElementById('payslipMsg');
@@ -3622,6 +3632,7 @@ importPayslip = async function (input) {
 };
 const _origHandlePDFUpload = handlePDFUpload;
 handlePDFUpload = async function (input) {
+  if (!_pdfImportBusy && [...(input.files || [])].some(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf')) _leaveDemo();
   _lastImportSummary = null;
   await _origHandlePDFUpload(input);
   if (!welcomeActive || !_lastImportSummary) return;
