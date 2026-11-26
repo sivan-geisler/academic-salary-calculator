@@ -38,6 +38,14 @@
   .wstep.wdone .wnum { background:#dcfce7; color:#15803d; }
   .wgate-locked { opacity:.4; pointer-events:none; user-select:none; }
   .wstep.wlocked { opacity:.5; } .wstep.wlocked .wbtns, .wstep.wlocked details { display:none; }
+  /* phones: the payslip table becomes one block per addition */
+  @media (max-width: 639px) {
+    .ps-table thead { display:none; }
+    .ps-table tr { display:block; padding:.6rem .75rem; }
+    .ps-table td { display:block; padding:.1rem 0; white-space:normal; }
+    .ps-table td:nth-child(3)::before { content:"בתלוש: "; color:#9ca3af; }
+    .ps-table td:nth-child(4)::before { content:"מה צריך לעשות: "; color:#9ca3af; }
+  }
   summary { list-style: none; } summary::-webkit-details-marker { display: none; }
   .grant-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,.1); }
   .alert-info    { background:#eff6ff; border-color:#93c5fd; color:#1e40af; }
@@ -238,8 +246,9 @@
         </div>
         <div>
           <label class="block text-xs font-semibold text-gray-600 mb-1">שכר בסיס אישי (₪)</label>
-          <input type="number" id="baseSalary" value="" placeholder="מהתלוש או ידנית" min="5000" max="60000" step="0.01"
+          <input type="number" id="baseSalary" value="" placeholder="מהתלוש או ידנית" min="0" step="0.01"
             class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 focus:outline-none focus:border-blue-400" onchange="updatePersonal()">
+          <div id="baseSalaryNote" class="hidden text-xs text-amber-700 mt-1"></div>
           <div class="flex items-center gap-2 mt-1.5">
             <button onclick="document.getElementById('payslipInput').click()"
               title="תלוש שכר של הטכניון (לא של המוסד), PDF מחילן"
@@ -415,7 +424,7 @@
         <div id="summarySentence" class="mb-5 bg-blue-50 border border-blue-100 rounded-2xl px-5 py-4 text-gray-800 leading-relaxed"></div>
 
         <!-- Salary meter row -->
-        <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
           <!-- Meter 1: additions % on scale 0 → effCeilAddPct -->
           <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-5 border border-blue-100">
             <div class="flex justify-between items-start mb-3">
@@ -1280,7 +1289,7 @@ function renderDashboard() {
     <details class="mx-3 mt-2 text-xs text-gray-600">
       <summary class="cursor-pointer text-blue-700 font-semibold">באיזה תלוש מופיעות התוספות, ומה צריך לעשות כדי לקבל אותן?</summary>
       <div class="mt-2 overflow-x-auto border border-gray-200 rounded-xl">
-      <table class="w-full text-xs leading-relaxed">
+      <table class="ps-table w-full text-xs leading-relaxed">
         <thead class="bg-blue-50 text-blue-900"><tr>
           <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">תוספת</th>
           <th class="px-3 py-2 text-right font-semibold whitespace-nowrap">באיזה תלוש</th>
@@ -1819,7 +1828,8 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeConfirm
 function patchGrant(id, field, val) {
   const g = state.grants.find(g => g.id === id);
   if (!g) return;
-  g[field] = field === 'amount'      ? (parseFloat(val) || 0)
+  if (field === 'name' && !String(val).trim()) val = g.name || 'מענק';   // a grant always has a name
+  g[field] = field === 'amount'      ? Math.max(0, parseFloat(val) || 0)
            : field === 'competitive' ? Boolean(val)
            : val;
   if (field === 'competitive') g.competitiveManual = true;
@@ -2523,10 +2533,11 @@ function updatePeakSalary() {
 
 function updatePersonal() {
   state.personal.rank            = document.getElementById('rank').value;
-  state.personal.baseSalary      = parseFloat(document.getElementById('baseSalary').value) || null;
+  const _b = parseFloat(document.getElementById('baseSalary').value);
+  state.personal.baseSalary      = _b > 0 ? _b : null;
   state.personal.hasFullTime     = document.getElementById('hasFullTime').checked;
   state.personal.hasDifferential = document.getElementById('hasDifferential').checked;
-  state.personal.managementBonus = parseFloat(document.getElementById('managementBonus').value) || 0;
+  state.personal.managementBonus = Math.max(0, parseFloat(document.getElementById('managementBonus').value) || 0);
   state.personal.managementStart = document.getElementById('managementStart').value;
   state.personal.managementEnd   = document.getElementById('managementEnd').value;
   updateAll();
@@ -2614,7 +2625,10 @@ function renderSalarySchedule() {
 const VERSIONS_KEY = 'techSalaryVersions_v1';
 
 function getVersions() {
-  try { return JSON.parse(localStorage.getItem(VERSIONS_KEY) || '[]'); } catch(e) { return []; }
+  try {
+    const v = JSON.parse(localStorage.getItem(VERSIONS_KEY) || '[]');
+    return Array.isArray(v) ? v.filter(x => x && typeof x === 'object' && x.state && typeof x.state === 'object') : [];
+  } catch(e) { return []; }
 }
 function setVersions(versions) {
   try { localStorage.setItem(VERSIONS_KEY, JSON.stringify(versions)); } catch(e) {}
@@ -2671,7 +2685,7 @@ function loadVersion(id) {
   const snap = versions.find(v => v.id === id);
   if (!snap) return;
   // keep the current work before switching (unless it is already saved as a scenario)
-  if (state.grants.length && !currentIsSaved()) saveVersion('לפני מעבר לתרחיש');
+  if (state.grants.length && !state.demo && !currentIsSaved()) saveVersion('לפני מעבר לתרחיש');
   state = JSON.parse(JSON.stringify(snap.state));
   applyPeakSalary(snap.peakSalaryNIS);
   normalizeState();
@@ -2746,11 +2760,13 @@ function importDataFile(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = () => {
+    let _prevState = null, _prevPeak = null;
     try {
       const data = JSON.parse(reader.result);
-      if (!data || data.app !== DATA_FILE_APP || !data.state) throw new Error('bad file');
+      if (!data || data.app !== DATA_FILE_APP || !data.state || typeof data.state !== 'object' || Array.isArray(data.state)) throw new Error('bad file');
+      _prevState = JSON.stringify(state); _prevPeak = PEAK_SALARY_NIS;
       // גיבוי של העבודה הנוכחית לפני הטעינה
-      if (state.grants.length && !currentIsSaved()) saveVersion('לפני פתיחת קובץ גיבוי');
+      if (state.grants.length && !state.demo && !currentIsSaved()) saveVersion('לפני פתיחת קובץ גיבוי');
       // מיזוג תרחישים מהקובץ (בלי כפילויות); תרחישים עם שם לא נמחקים
       if (Array.isArray(data.versions)) {
         const vs = getVersions(); const ids = new Set(vs.map(v => v.id));
@@ -2771,6 +2787,10 @@ function importDataFile(input) {
       if (data.exportedAt) setLastBackup(data.exportedAt);
       if (welcomeActive) closeWelcome();
     } catch (e) {
+      if (_prevState) {   // the file was damaged half-way: go back to what was on screen
+        try { state = JSON.parse(_prevState); applyPeakSalary(_prevPeak); normalizeState(); restorePersonalUI();
+              renderGrants(); renderSalarySchedule(); renderVersions(); updateAll(); } catch (e2) {}
+      }
       msg.className = 'mt-1 text-red-600';
       msg.textContent = 'לא ניתן לפתוח את הקובץ. יש לבחור קובץ גיבוי שנשמר מהמחשבון (קובץ שמסתיים ב-json.).';
       const wm = document.getElementById('wImportMsg');
@@ -2794,8 +2814,9 @@ function deleteVersion(id) {
 function startRename(id) {
   const el = document.getElementById('vname-' + id);
   if (!el) return;
-  const cur = el.textContent;
-  el.innerHTML = `<input id="vname-input-${id}" type="text" value="${cur.replace(/"/g,'&quot;')}"
+  const snap = getVersions().find(v => v.id === id);
+  const cur = snap ? String(snap.name || '') : '';
+  el.innerHTML = `<input id="vname-input-${id}" type="text" maxlength="80" value="${esc(cur)}"
     class="w-full border border-blue-300 rounded px-1 py-0.5 text-xs outline-none bg-white"
     onblur="commitRename(${id})" onkeydown="if(event.key==='Enter')this.blur();if(event.key==='Escape'){this.dataset.cancel='1';this.blur();}">`;
   const inp = document.getElementById('vname-input-' + id);
@@ -3406,8 +3427,20 @@ ${chartImgHtml}
 // ─────────────────────────────────────────────
 // CENTRAL UPDATE
 // ─────────────────────────────────────────────
+// a base salary outside the usual range is accepted, with a small "check again" note
+const BASE_SALARY_USUAL = [10000, 45000];
+const BASE_SALARY_NOTE = 'שכר הבסיס מחוץ לטווח המקובל (10,000 עד 45,000 ₪). כדאי לבדוק שוב את הסכום.';
+function baseSalaryUnusual(v) { return v > 0 && (v < BASE_SALARY_USUAL[0] || v > BASE_SALARY_USUAL[1]); }
+function renderBaseSalaryNote() {
+  const el = document.getElementById('baseSalaryNote');
+  if (!el) return;
+  const odd = baseSalaryUnusual(state.personal.baseSalary);
+  el.textContent = odd ? BASE_SALARY_NOTE : '';
+  el.classList.toggle('hidden', !odd);
+}
 function updateAll() {
   saveCurrentState();
+  renderBaseSalaryNote();
   renderDashboard();
   if (!document.getElementById('view-timeline').classList.contains('hidden')) renderTimeline();
   // Update header: show rank ceiling (max possible regardless of current grants)
@@ -3472,10 +3505,30 @@ function applyPeakSalary(val) {
   document.getElementById('peakSalaryInput').value = PEAK_SALARY_NIS;
 }
 function normalizeState() {
+  // data from a file or from storage may be damaged — never let it break the page
+  if (!state || typeof state !== 'object' || Array.isArray(state)) state = {};
+  if (!state.personal || typeof state.personal !== 'object' || Array.isArray(state.personal)) state.personal = {};
   state.personal = Object.assign({ rank:'full', baseSalary:null, hasFullTime:true, hasDifferential:true,
                                    managementBonus:0, managementStart:'', managementEnd:'' }, state.personal || {});
   if (!(parseFloat(state.personal.baseSalary) > 0)) state.personal.baseSalary = null;   // "not entered" — never a silent default
-  state.grants = Array.isArray(state.grants) ? state.grants : [];
+  if (!RANK_NAMES[state.personal.rank]) state.personal.rank = 'full';
+  state.personal.managementBonus = Math.max(0, parseFloat(state.personal.managementBonus) || 0);
+  const isoOk = d => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d) && !isNaN(new Date(d));
+  const seenIds = new Set();
+  state.grants = (Array.isArray(state.grants) ? state.grants : [])
+    .filter(g => g && typeof g === 'object' && !Array.isArray(g) && isoOk(g.startDate) && isoOk(g.endDate))
+    .map(g => {
+      g.name = g.name == null ? '' : String(g.name);
+      if (!['A', 'B', 'none', 'none_ext'].includes(g.type)) g.type = 'none';
+      g.amount = Math.max(0, parseFloat(g.amount) || 0);
+      if (!EXCHANGE[g.currency]) g.currency = 'USD';
+      g.id = +g.id;
+      if (!Number.isFinite(g.id) || g.id < 1 || seenIds.has(g.id)) g.id = 0;   // re-numbered below
+      seenIds.add(g.id);
+      return g;
+    });
+  let freeId = state.grants.reduce((m, g) => Math.max(m, g.id), 0);
+  state.grants.forEach(g => { if (!g.id) g.id = ++freeId; });
   state.peakSalarySchedule = [];   // per-year peak salary was removed from the UI (Nov 2026)
   // competitive is now detected from the funder list; keep an earlier hand-made "yes" that the list doesn't confirm
   for (const g of state.grants) {
@@ -3589,12 +3642,18 @@ function welcomeStepDone(n, html) {
 }
 function welcomeManualPersonal() {
   const v = parseFloat(document.getElementById('wBase').value);
-  if (!(v >= 5000)) { document.getElementById('wBase').classList.add('border-red-400'); return; }
+  if (!(v >= 5000)) {
+    document.getElementById('wBase').classList.add('border-red-400');
+    document.getElementById('wMsg1').innerHTML = '<div class="text-red-600">יש להזין שכר בסיס חודשי בשקלים (5,000 ₪ לפחות).</div>';
+    return;
+  }
+  document.getElementById('wBase').classList.remove('border-red-400');
   _leaveDemo();
   state.personal.baseSalary = v;
   state.personal.rank = document.getElementById('wRank').value;
   restorePersonalUI(); updateAll(); renderGrants();
-  welcomeStepDone(1, `✓ שכר בסיס ₪${Math.round(v).toLocaleString('he-IL')}, ${RANK_NAMES[state.personal.rank]}`);
+  welcomeStepDone(1, `✓ שכר בסיס ₪${Math.round(v).toLocaleString('he-IL')}, ${RANK_NAMES[state.personal.rank]}`
+    + (baseSalaryUnusual(v) ? `<div class="text-amber-700 mt-1">${BASE_SALARY_NOTE}</div>` : ''));
 }
 // the "הודעה לחוקר" drop zone lives in the grants card; during onboarding it moves into step 2
 let _dzHome = null;
