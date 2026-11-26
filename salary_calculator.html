@@ -3752,7 +3752,7 @@ function renderSummarySentence(r) {
   if (r.noBase) html += ' תקרת התוספות תחושב אחרי הזנת שכר הבסיס.';
   else if (remain > 0.05) html += ` עד תקרת התוספות (${p(r.effCeilAddPct)}) נשארים ${p(remain)}${onlyMgmtFillsRoom(r) ? ' — מקום שרק תוספת תפקיד יכולה למלא' : ''}.`;
   else html += ' הגעתם לתקרת התוספות.';
-  html += `<div class="text-xs text-gray-600 mt-1.5">המחשבון מציג את הזכאות לפי הכללים, ולא בהכרח את מה שמשולם בפועל: התשלום תלוי בטפסים, באישורים ובמועדי הביצוע במחלקות השכר (ראו ״באיזה תלוש מופיעות התוספות״ מתחת לפירוט). כל האחוזים הם אחוז משכר הבסיס שלכם.</div>`;
+  html += `<div class="text-xs text-gray-600 mt-1.5">המחשבון מציג את הזכאות לפי הכללים, ולא בהכרח את מה שמשולם בפועל: התשלום תלוי בטפסים, באישורים ובמועדי הביצוע במחלקות השכר. כל האחוזים הם אחוז משכר הבסיס שלכם.</div>`;
   html += `</div>`;
   el.innerHTML = html;
   document.getElementById('demoBanner').classList.toggle('hidden', !state.demo);
