@@ -3429,7 +3429,7 @@ ${chartImgHtml}
 // ─────────────────────────────────────────────
 // a base salary outside the usual range is accepted, with a small "check again" note
 const BASE_SALARY_USUAL = [10000, 45000];
-const BASE_SALARY_NOTE = 'שכר הבסיס מחוץ לטווח המקובל (10,000 עד 45,000 ₪). כדאי לבדוק שוב את הסכום.';
+const BASE_SALARY_NOTE = 'שכר הבסיס נראה חריג. כדאי לבדוק שוב את הסכום.';
 function baseSalaryUnusual(v) { return v > 0 && (v < BASE_SALARY_USUAL[0] || v > BASE_SALARY_USUAL[1]); }
 function renderBaseSalaryNote() {
   const el = document.getElementById('baseSalaryNote');
