@@ -97,6 +97,7 @@
             class="text-blue-300 hover:text-white text-sm leading-none" title="מה זה אומר?">ℹ️</button>
         </div>
         <div id="headerMaxPct" class="text-white text-2xl font-black">—%</div>
+        <div class="text-blue-100 text-[11px] leading-tight">המקסימום האפשרי בדרגה שלכם</div>
         <div id="headerMaxPctSub" class="text-blue-200 text-[11px] leading-tight"></div>
       </div>
       <button onclick="exportPDF()"
@@ -1191,9 +1192,9 @@ function renderDashboard() {
     'bar-fill h-full rounded-full ' +
     (r.isCeilCapped ? 'bg-gradient-to-l from-red-600 to-red-400' : 'bg-gradient-to-l from-blue-600 to-blue-400');
   document.getElementById('totalPctDisplay').textContent    = fmt(r.totalAdd);
-  document.getElementById('totalSalaryDisplay').textContent = '';
+  document.getElementById('totalSalaryDisplay').textContent = 'הזכאות שלכם היום, עם המענקים והתפקידים הנוכחיים';
   document.getElementById('ceilPctLabel').textContent       = r.noBase ? '—' : fmt(ceil);
-  document.getElementById('ceilPctLabelEnd').textContent    = r.noBase ? 'תקרת התוספות: הזינו שכר בסיס' : fmt(ceil) + ' (תקרת התוספות)';
+  document.getElementById('ceilPctLabelEnd').textContent    = r.noBase ? 'תקרת התוספות: הזינו שכר בסיס' : fmt(ceil) + ' (תקרת התוספות: המקסימום בדרגה שלכם)';
   const remainToCeil = r.noBase ? 0 : Math.max(0, ceil - r.totalAdd);
   document.getElementById('remainCapDisplay').textContent   =
     remainToCeil > 0.05 ? 'פנוי עד תקרת התוספות: ' + fmt(remainToCeil) : '';
