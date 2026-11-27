@@ -473,7 +473,7 @@
             </div>
             <div class="flex justify-between text-xs text-gray-400 mt-1">
               <span></span>
-              <span id="researchCapLabel" class="text-green-600 font-semibold">56% (תקרת מחקר)</span>
+              <span id="researchCapLabel" class="text-green-600 font-semibold">56% (תקרת מחקר מקסימלית)</span>
               <span id="ceilPctLabelResearch" class="hidden"></span>
             </div>
           </div>
@@ -1271,7 +1271,7 @@ function renderDashboard() {
     (r.isResearchCapped ? 'bg-gradient-to-l from-emerald-600 to-emerald-400' : 'bg-gradient-to-l from-green-600 to-green-400');
   document.getElementById('researchPctDisplay').textContent    = fmt(r.cappedResearch);
   document.getElementById('researchRemainDisplay').textContent = fmt(r.researchRemain);
-  document.getElementById('researchCapLabel').textContent      = `${r.researchCap}% (תקרת מחקר)`;
+  document.getElementById('researchCapLabel').textContent      = `${r.researchCap}% (תקרת מחקר מקסימלית)`;
   document.getElementById('researchCapNote').textContent       =
     `מתוך תקרה של ${r.researchCap}%${r.isOldRules ? ' (כללים ישנים)' : ''}`;
   document.getElementById('ceilPctLabelResearch').textContent  = '';
