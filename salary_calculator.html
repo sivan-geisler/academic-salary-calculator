@@ -865,12 +865,17 @@ const SALARY_CAP_PRESETS = {
 function grantCapNIS(g) {
   if (!g || g.type !== 'A') return null;
   if (SALARY_CAP_PRESETS[g.salaryCap]) return SALARY_CAP_PRESETS[g.salaryCap].monthlyNIS;
-  if (g.salaryCap === 'custom') return parseFloat(g.salaryCapNIS) > 0 ? parseFloat(g.salaryCapNIS) : null;
+  if (g.salaryCap === 'custom') {
+    const v = parseFloat(g.salaryCapNIS);
+    if (v > 0) return v;
+    // an explicit 0 = the funder does not allow charging the researcher's salary at all; an empty field = not set yet
+    return (v === 0 && String(g.salaryCapNIS).trim() !== '') ? 0 : null;
+  }
   return null;
 }
 function grantCapPct(g, base) {
   const nis = grantCapNIS(g);
-  if (!nis || !(base > 0)) return null;
+  if (nis == null || !(base > 0)) return null;
   return Math.round(nis / EMPLOYER_COST_FACTOR / base * 1000) / 10;   // % of base, 0.1 precision
 }
 // A-grant from a funder known to limit salary charges, with no cap decision yet
@@ -965,6 +970,8 @@ function calcAt(personal, grants, date) {
   const aCap    = hasOldRulesActiveA ? OLD_RESEARCH_A_CAP : RESEARCH_A_CAP;
   const rawAPct = Math.min(sumAPct, aCap);
   const qualifyingACount = activeA.filter(g => grantAPct(g, capBase) > 0).length;
+  const aFunderLimited = activeA.some(g => grantAPct(g, capBase) < grantAPctRaw(g) - 0.01);   // a funder cap lowers this grant's A addition
+  const capNeedsBase   = noBase && activeA.some(g => grantAPctRaw(g) > 0 && grantCapNIS(g) != null);  // cap in NIS, no base to convert it
 
   // Research cap: 55% under old rules (old A grant with no new A grant beside it), 56% otherwise
   const effectiveResearchCap = hasOldRulesActiveA ? OLD_RESEARCH_CAP : RESEARCH_CAP;
@@ -1044,7 +1051,7 @@ function calcAt(personal, grants, date) {
     effCeilTotalPct: 100 + effCeilAddPct,
     fullTime, differential, excellence, excellenceFull, excFunderRoom, excFunderLimited,
     bPct, maxBusd, multPct,
-    rawAPct, cappedA, maxAusd, sumAPct, aCap, qualifyingACount,
+    rawAPct, cappedA, maxAusd, sumAPct, aCap, qualifyingACount, aFunderLimited, capNeedsBase,
     excellenceMax: EXCELLENCE_PCT, oldRulesUntil,
     rawResearch, cappedResearch, researchCap: effectiveResearchCap, isOldRules: hasOldRulesActiveA,
     isResearchCapped: rawResearch > effectiveResearchCap,
@@ -1106,6 +1113,7 @@ function breakdownRows(r, multInfo, aInfo, excInfo) {
         ? `הוגבל ל-${fmt(r.paidA)} בגלל תקרת התוספות`
         : r.maxAusd > 0
           ? (r.qualifyingACount > 1 ? `✓ זכאות · ${r.qualifyingACount} מענקי א׳` : '✓ זכאות')
+            + (r.aFunderLimited && r.paidA >= r.sumAPct - 0.01 ? ' · מוגבל בתקרת חיוב השכר של המממן' : '')
             + (r.paidA < r.sumAPct - 0.01
                 ? ` · הוגבל ל-${fmt(r.paidA)} בגלל ${r.cappedA < r.rawAPct - 0.01 ? `תקרת המחקר (${r.researchCap}%)` : `תקרת תוספת א׳ (${r.aCap}%)`}`
                 : '')
@@ -1335,6 +1343,8 @@ function renderDashboard() {
     alerts.push({ cls:'alert-warn', icon:'✏️', msg:'לא הוזן שכר בסיס. האחוזים של כל תוספת נכונים גם בלעדיו, אבל תקרת התוספות (ולכן הזכאות כשמתקרבים אליה) תחושב רק אחרי שתזינו אותו, בנתונים האישיים.' });
   if (!r.noBase && r.totalAdd >= r.effCeilAddPct - 0.05)  // totalAdd is capped additions, effCeilAddPct = ceiling - 100%
     alerts.push({ cls:'alert-success', icon:'✅', msg:'הגעתם לתקרת התוספות — זה המקסימום שאפשר לקבל.' });
+  if (r.capNeedsBase)
+    alerts.push({ cls:'alert-warn', icon:'⚠️', msg:'לאחד ממענקי א׳ הוגדרה תקרת חיוב שכר של המממן. בלי שכר בסיס אי אפשר לתרגם אותה לאחוזים, ולכן תוספת א׳ וגמול המצוינות מוצגים כרגע בלי ההגבלה הזו, וייתכן שהם גבוהים מהזכאות בפועל.' });
   if (r.isResearchCapped)
     alerts.push({ cls:'alert-info', icon:'ℹ️', msg:`תוספות המחקר הגיעו לתקרה של ${r.researchCap}%. לכן תוספת א' עומדת על ${fmt(r.cappedA)} (במקום ${fmt(r.rawAPct)}).` });
   if (!r.isResearchCapped && r.researchRemain > 0 && r.researchRemain < 6)
@@ -2055,10 +2065,10 @@ function _renderGrantsImpl() {
               </div>
               ${g.salaryCap === 'custom' ? `<div>
                 <div class="${lbl}">עד ₪ לחודש (עלות מעביד)</div>
-                <input type="number" min="0" step="100" value="${g.salaryCapNIS || ''}" onchange="patchGrant(${g.id},'salaryCapNIS',this.value); renderGrants();" class="${inp}" style="width:8rem">
+                <input type="number" min="0" step="100" value="${g.salaryCapNIS ?? ''}" onchange="patchGrant(${g.id},'salaryCapNIS',this.value); renderGrants();" class="${inp}" style="width:8rem">
               </div>` : ''}
-              ${grantCapNIS(g) && !hasBase(state.personal) ? '<div class="text-xs text-amber-700 pb-1">כדי לחשב את התקרה באחוזים צריך להזין שכר בסיס.</div>' : ''}
-              ${grantCapNIS(g) && hasBase(state.personal) ? `<div class="text-xs text-gray-600 pb-1">
+              ${grantCapNIS(g) != null && !hasBase(state.personal) ? '<div class="text-xs text-amber-700 pb-1">כדי לחשב את התקרה באחוזים צריך להזין שכר בסיס.</div>' : ''}
+              ${grantCapNIS(g) != null && hasBase(state.personal) ? `<div class="text-xs text-gray-600 pb-1">
                 ≈ <b>${fmt(grantCapPct(g, state.personal.baseSalary))}</b> משכר הבסיס (₪${grantCapNIS(g).toLocaleString('he-IL')} ÷ ${EMPLOYER_COST_FACTOR} ÷ ₪${Math.round(state.personal.baseSalary).toLocaleString('he-IL')})
                 ${tier < grantAPctRaw(g) - 0.05 ? ` — <span class="text-amber-700">מהמענק הזה אפשר לממן ${fmt(tier)} במקום ${fmt(grantAPctRaw(g))}</span>` : ' — לא מגביל את התוספת'}
               </div>` : ''}
@@ -2121,6 +2131,13 @@ function grantsCombineNote() {
 
 const PDFJS_WORKER_SRC =
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+// The letter prints the funder as "<acronym> <code> <name>" (e.g. "B.S.F 890020 הקרן הדו-לאומית").
+// Depending on the text order the PDF library returns, a piece of the acronym can be left
+// in front of the name (".S.B הקרן הדו-לאומית"). A leading token that starts with a dot is never part of a name.
+function cleanFunderFragment(t) {
+  return String(t || '').replace(/^\.[A-Za-z.]{0,8}\s+(?=\S)/, '').trim();
+}
 
 function israeliToISO(dateStr) {
   // Converts DD.MM.YYYY → YYYY-MM-DD
@@ -2294,7 +2311,7 @@ async function parsePDFGrant(file) {
       // Code was at the end (e.g. "Sartorius Stedim Biotech GmbH 802532")
       fn = fn.replace(/\s*\b\d{5,6}\b\s*$/, '').trim();
     }
-    funderName = fn.replace(/\.$/, '').trim(); // strip trailing period
+    funderName = cleanFunderFragment(fn.replace(/\.$/, '').trim()); // strip trailing period
   }
   if (!funderName) {   // page-1 line "אושר מימון ע"י <code> <funder>"
     const fl = lineItems(allItems, /אושר\s*מימון/).map(it => it.str).join(' ')
@@ -2562,7 +2579,7 @@ function updatePersonal() {
   state.personal.managementStart = document.getElementById('managementStart').value;
   state.personal.managementEnd   = document.getElementById('managementEnd').value;
   updateAll();
-  if (state.grants.some(grantCapNIS)) renderGrants();     // funder caps depend on the base salary
+  if (state.grants.some(g => grantCapNIS(g) != null)) renderGrants();     // funder caps depend on the base salary
 }
 
 // ─────────────────────────────────────────────
@@ -3384,7 +3401,7 @@ table.small, table.small th { font-size:8.5pt; } table.small td, table.small th 
   <div class="box"><div class="lbl">דרגה אקדמית</div><div class="val" style="font-size:12pt">${rankName}</div></div>
   <div class="box"><div class="lbl">שכר בסיס</div><div class="val">${r.noBase ? 'לא הוזן' : '₪' + Math.round(r.base).toLocaleString('he-IL')}</div></div>
   <div class="box"><div class="lbl">סה"כ זכאות לתוספות היום</div><div class="val">${r.totalAdd.toFixed(1)}%</div></div>
-  <div class="box"><div class="lbl">תקרת התוספות היום</div><div class="val">${r.noBase ? '—' : r.effCeilAddPct.toFixed(1) + '%'}</div>${potNote ? `<div class="lbl" style="margin-top:2px">${potNote}</div>` : ''}</div>
+  <div class="box"><div class="lbl">תקרת התוספות היום (פוטנציאל)</div><div class="val">${r.noBase ? '—' : r.effCeilAddPct.toFixed(1) + '%'}</div>${potNote ? `<div class="lbl" style="margin-top:2px">${potNote}</div>` : ''}</div>
 </div>
 <table class="nobreak">
   <thead><tr><th>רכיב</th><th>זכאות</th><th>מי משלם</th><th>מצב</th></tr></thead>
@@ -3539,7 +3556,8 @@ function normalizeState() {
   state.grants = (Array.isArray(state.grants) ? state.grants : [])
     .filter(g => g && typeof g === 'object' && !Array.isArray(g) && isoOk(g.startDate) && isoOk(g.endDate))
     .map(g => {
-      g.name = g.name == null ? '' : String(g.name);
+      g.name = cleanFunderFragment(g.name == null ? '' : String(g.name));
+      if (g.funderName) g.funderName = cleanFunderFragment(g.funderName);
       if (!['A', 'B', 'none', 'none_ext'].includes(g.type)) g.type = 'none';
       g.amount = Math.max(0, parseFloat(g.amount) || 0);
       if (!EXCHANGE[g.currency]) g.currency = 'USD';
